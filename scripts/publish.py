@@ -8,9 +8,10 @@ Rules:
 - DRY_RUN=true (the default) only prints what would happen.
 
 Environment variables:
-  IG_ACCESS_TOKEN  Instagram User access token (GitHub Secret). Never printed.
+  IG_ACCESS_TOKEN  System user access token from the business portfolio (GitHub Secret). Never printed.
+  IG_USER_ID       Instagram professional account ID (GitHub Variable).
   DRY_RUN          "false" to really publish. Anything else = dry run.
-  IG_API_BASE      default https://graph.instagram.com
+  IG_API_BASE      default https://graph.facebook.com
   GITHUB_REPOSITORY  owner/name (set automatically by GitHub Actions)
   IMAGE_BRANCH     branch that holds the images (default: main)
 """
@@ -30,8 +31,9 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 POSTS = ROOT / "posts"
 LOG = ROOT / "published.csv"
 
-API = os.environ.get("IG_API_BASE", "https://graph.instagram.com").rstrip("/")
+API = (os.environ.get("IG_API_BASE") or "https://graph.facebook.com").rstrip("/")
 TOKEN = os.environ.get("IG_ACCESS_TOKEN", "")
+IG_USER_ID = os.environ.get("IG_USER_ID", "").strip()
 REPO = os.environ.get("GITHUB_REPOSITORY", "OWNER/REPO")
 BRANCH = os.environ.get("IMAGE_BRANCH", "main")
 DRY_RUN = os.environ.get("DRY_RUN", "true").strip().lower() != "false"
@@ -119,9 +121,13 @@ def due_posts():
 
 
 def publish(pid, images, caption):
-    me = call("GET", "me", {"fields": "user_id,username"})
-    ig_id = me.get("user_id") or me["id"]
-    log(f"account: @{me.get('username')}")
+    if IG_USER_ID:
+        ig_id = IG_USER_ID
+        info = call("GET", ig_id, {"fields": "username"})
+    else:  # Instagram-login tokens: /me is the Instagram account itself
+        info = call("GET", "me", {"fields": "user_id,username"})
+        ig_id = info.get("user_id") or info["id"]
+    log(f"account: @{info.get('username')}")
     children = []
     for name in images:
         c = call("POST", f"{ig_id}/media", {"image_url": image_url(pid, name), "is_carousel_item": "true"})
