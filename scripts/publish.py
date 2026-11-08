@@ -142,6 +142,15 @@ def publish(pid, images, caption):
 
 def main():
     log(f"mode: {'DRY RUN (nothing is posted)' if DRY_RUN else 'LIVE'}")
+    if TOKEN and IG_USER_ID:  # read-only connection check, posts nothing
+        try:
+            info = call("GET", IG_USER_ID, {"fields": "username,media_count"})
+            log(f"connection OK: @{info.get('username')} (posts: {info.get('media_count')})")
+        except RuntimeError as e:
+            log(f"connection FAILED: {e}")
+            return 1
+    else:
+        log("connection check skipped (IG_ACCESS_TOKEN or IG_USER_ID not set)")
     for pid, images, caption in due_posts():
         log(f"[due] {pid}: {len(images)} images")
         for name in images:
