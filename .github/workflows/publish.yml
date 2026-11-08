@@ -27,6 +27,8 @@ jobs:
       - name: Publish due post
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ vars.IG_USER_ID }}
+          IG_API_BASE: ${{ vars.IG_API_BASE }}
           # Scheduled runs post for real only when the repository variable LIVE_MODE is "on".
           # Manual runs follow the dry_run choice (and still need LIVE_MODE = on to post).
           DRY_RUN: ${{ (vars.LIVE_MODE == 'on' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run == 'true')) && 'false' || 'true' }}
