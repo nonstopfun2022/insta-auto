@@ -1,0 +1,43 @@
+name: Instagram auto publish
+
+on:
+  schedule:
+    - cron: "5 * * * *"   # every hour at :05 (UTC). GitHub may start a few minutes late.
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "true = test only (nothing is posted)"
+        default: "true"
+        type: choice
+        options: ["true", "false"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: instagram-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish due post
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          # Scheduled runs post for real only when the repository variable LIVE_MODE is "on".
+          # Manual runs follow the dry_run choice (and still need LIVE_MODE = on to post).
+          DRY_RUN: ${{ (vars.LIVE_MODE == 'on' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run == 'true')) && 'false' || 'true' }}
+        run: python3 scripts/publish.py
+
+      - name: Save publish log
+        run: |
+          if [ -n "$(git status --porcelain published.csv)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add published.csv
+            git commit -m "Record published post"
+            git push
+          fi
