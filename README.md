@@ -27,15 +27,17 @@
 2. 新しいリポジトリを作る：名前 `insta-auto`、**Public（公開）**、ほかは空のまま
 3. このフォルダの中身をアップロードする（Claudeが手順を案内します）
 
-### 2. Meta（インスタのAPI）
-1. https://developers.facebook.com/ に登録してアプリを作る
-2. 「Instagram API（Instagramログイン）」を追加し、@futsuu_no_ai をつなぐ
-3. アクセストークンを作る（約60日有効）
-   ※画面の名前は変わることがあるので、Claudeが画面を見ながら案内します【要確認】
+### 2. Meta（インスタのAPI）※2026-11-09 設定ずみ
+- 開発者アプリ：futsuu-autopost（開発モード）
+- ビジネスポートフォリオ：ふつうの社会人のai活用（@futsuu_no_ai を追加ずみ）
+- システムユーザー：autopost-bot（アプリと @futsuu_no_ai〔コンテンツ権限のみ〕を割り当て）
+- トークン：autopost-bot の「トークンを生成」で作成（有効期限なし、instagram_basic と instagram_content_publish）
+- ※新しいアプリでは「Instagramログイン」のトークンは使えないため、この方法にした
 
-### 3. GitHub に合い言葉と設定を入れる
+### 3. GitHub に合い言葉と設定を入れる ※設定ずみ
 リポジトリの Settings → Secrets and variables → Actions
-- **Secrets** に `IG_ACCESS_TOKEN`（2-3で作ったトークン）
+- **Secrets** に `IG_ACCESS_TOKEN`（システムユーザーのトークン）
+- **Variables** に `IG_USER_ID` = `17841462105871043`（@futsuu_no_ai のID）
 - **Variables** に `LIVE_MODE` = `off`（最初は試し運転）
 
 ### 4. 試し運転
@@ -46,9 +48,10 @@
 1. 投稿してよいものの `post.json` を `"approved": true` にする
 2. 変数 `LIVE_MODE` を `on` にする
 
-### 6. トークンの自動更新（あとでOK）
-- トークンは約60日で切れる。`refresh-token.yml` が月2回更新する
-- そのために、Secrets に `GH_PAT`（このリポジトリの Secrets を書きかえられるGitHubトークン）を入れる
+### 6. トークンについて
+- システムユーザーのトークンは期限なし。更新はいらない
+- 試し運転のログに `connection OK: @futsuu_no_ai` と出ればつながっている
+- トークンがもれたかもと思ったら、autopost-bot の「トークンを取り消す」→ 作り直して Secrets を上書きする
 
 ---
 
