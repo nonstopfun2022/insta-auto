@@ -62,8 +62,8 @@ def call(method, path, params=None):
         raise RuntimeError(f"{method} /{path} failed ({e.code}): {detail}") from None
 
 
-def wait_ready(container_id, label):
-    for _ in range(36):  # up to about 3 minutes
+def wait_ready(container_id, label, tries=36):
+    for _ in range(tries):  # 36 tries = about 3 minutes
         st = call("GET", container_id, {"fields": "status_code"}).get("status_code")
         if st == "FINISHED":
             return
@@ -111,9 +111,15 @@ def due_posts():
         if at > now:
             log(f"[wait] {pid}: scheduled for {meta['publish_at']}")
             continue
-        images = sorted(p.name for p in d.glob("*.jpg"))
-        if not 2 <= len(images) <= 10:
-            raise ValueError(f"{pid}: a carousel needs 2-10 JPEG images, found {len(images)}")
+        videos = sorted(p.name for p in d.glob("*.mp4"))
+        if videos:  # a reel: exactly one MP4
+            if len(videos) != 1:
+                raise ValueError(f"{pid}: a reel needs exactly one MP4, found {len(videos)}")
+            images = videos
+        else:
+            images = sorted(p.name for p in d.glob("*.jpg"))
+            if not 2 <= len(images) <= 10:
+                raise ValueError(f"{pid}: a carousel needs 2-10 JPEG images, found {len(images)}")
         caption = (d / "caption.txt").read_text(encoding="utf-8").strip()
         if len(caption) > 2200:
             raise ValueError(f"{pid}: caption is longer than 2200 characters")
@@ -128,6 +134,16 @@ def publish(pid, images, caption):
         info = call("GET", "me", {"fields": "user_id,username"})
         ig_id = info.get("user_id") or info["id"]
     log(f"account: @{info.get('username')}")
+    if len(images) == 1 and images[0].endswith(".mp4"):
+        c = call("POST", f"{ig_id}/media", {
+            "media_type": "REELS",
+            "video_url": image_url(pid, images[0]),
+            "caption": caption,
+            "share_to_feed": "false",
+        })
+        wait_ready(c["id"], "reel", tries=72)  # video processing: up to about 6 minutes
+        res = call("POST", f"{ig_id}/media_publish", {"creation_id": c["id"]})
+        return res["id"]
     children = []
     for name in images:
         c = call("POST", f"{ig_id}/media", {"image_url": image_url(pid, name), "is_carousel_item": "true"})
@@ -152,7 +168,8 @@ def main():
     else:
         log("connection check skipped (IG_ACCESS_TOKEN or IG_USER_ID not set)")
     for pid, images, caption in due_posts():
-        log(f"[due] {pid}: {len(images)} images")
+        kind = "reel" if images[0].endswith(".mp4") else f"{len(images)} images"
+        log(f"[due] {pid}: {kind}")
         for name in images:
             log(f"  {image_url(pid, name)}")
         log("  caption: " + caption.splitlines()[0][:60] + " ...")
